@@ -1,7 +1,14 @@
 # 本实验是手搓YOlov3模型进行昆虫数据集检测(Pytorch版本)
 ## 模型训练
 ~~~
-python 
+tensorboard --logdir=runs
+~~~
+~~~
+python train.py
+~~~
+## 模型测试
+~~~
+python test.py
 ~~~
 
 ## 测试结果
