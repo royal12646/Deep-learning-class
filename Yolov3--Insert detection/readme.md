@@ -7,10 +7,14 @@
 
 ## loss变化与mAP变化
 训练loss:
+
 ![image](https://github.com/user-attachments/assets/e78ea926-e1db-4be0-a0de-93e8319f492b)
+
 验证loss:
+
 ![image](https://github.com/user-attachments/assets/dcbc7902-58c7-4dc0-a47e-36fe5d6aed77)
 
 训练/验证map:
+
 ![image](https://github.com/user-attachments/assets/20c90091-b0cd-4d1a-be4a-74a7fe15cdea)
 
