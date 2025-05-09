@@ -28,5 +28,6 @@ python test.py
 
 训练/验证map:
 
-![image](https://github.com/user-attachments/assets/20c90091-b0cd-4d1a-be4a-74a7fe15cdea)
+![image](https://github.com/user-attachments/assets/0a1087d8-d4a4-49dd-8c87-b309f29fe906)
+
 
