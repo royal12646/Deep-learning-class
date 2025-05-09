@@ -112,8 +112,8 @@ if __name__ == "__main__":
 
         train_map = evaluate_map(model, train_subset_loader, device)  # 若速度慢，可以传一个子集 loader
         valid_map = evaluate_map(model, valid_loader, device)
-        train_map=train_map*10
-        valid_map=valid_map*10
+        train_map=train_map
+        valid_map=valid_map
         # ---------- TensorBoard ----------
         writer.add_scalar("mAP/train", train_map, epoch)
         writer.add_scalar("mAP/valid", valid_map, epoch)
