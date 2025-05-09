@@ -1,3 +1,7 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class ConvBNLayer(nn.Module):
     """Conv2d + BatchNorm2d + LeakyReLU"""
     def __init__(self, ch_in, ch_out, k=3, s=1, p=0,
@@ -127,94 +131,6 @@ class YoloDetectionBlock(nn.Module):
         tip   = self.tip(route)  # 给 Detect Head
         return route, tip
 
-def sigmoid(x):
-    return torch.sigmoid(x)
-
-@torch.no_grad()
-def yolo_box_xxyy_torch(pred, anchors, num_classes, downsample):
-    """
-    将 YOLOv3 网络输出的特征图 (tx, ty, tw, th) 解码为
-    归一化 (x1, y1, x2, y2) 边界框坐标。
-
-    Args
-    ----
-    pred : Tensor[ B, C, H, W ]
-        - 网络的 raw 输出特征图
-        - C = num_anchors * (5 + num_classes)
-    anchors : list or Tensor
-        - 长度 = 2 × num_anchors，格式 [w1, h1, w2, h2, ...]
-        - 单位与输入尺寸相同（一般为像素）
-    num_classes : int
-        - 类别数
-    downsample : int
-        - 该特征图相对原图的 stride
-          *P0=32, P1=16, P2=8* 等
-
-    Returns
-    -------
-    boxes_xyxy : Tensor[ B, H, W, num_anchors, 4 ]
-        - 4 为 (x1, y1, x2, y2)
-        - 坐标已归一化到 0~1
-    """
-    # -------------------------------------------------------------
-    # 1. 基本维度信息
-    # -------------------------------------------------------------
-    B, C, H, W = pred.shape                      # batch, channels, height, width
-    num_anchors = len(anchors) // 2
-    assert C == num_anchors * (num_classes + 5), \
-        "channel size {} 与设定不符".format(C)
-
-    # -------------------------------------------------------------
-    # 2. 重新排列维度： [B, NA, 5+CLS, H, W] → [B, H, W, NA, 4]
-    # -------------------------------------------------------------
-    pred = pred.view(B, num_anchors, num_classes + 5, H, W)   # 先 group by anchor
-    pred_loc = pred[:, :, 0:4, :, :]                          # 取 tx,ty,tw,th
-    pred_loc = pred_loc.permute(0, 3, 4, 1, 2)                # B H W NA 4
-
-    # -------------------------------------------------------------
-    # 3. 网格坐标 (cx, cy) 以及 anchor 尺寸 (pw, ph)
-    # -------------------------------------------------------------
-    device = pred.device
-    # 生成网格 y,x 索引，shape = [H, W]
-    grid_y, grid_x = torch.meshgrid(
-        torch.arange(H, dtype=torch.float32, device=device),
-        torch.arange(W, dtype=torch.float32, device=device),
-        indexing="ij")
-    grid_xy = torch.stack((grid_x, grid_y), dim=-1)           # H W 2
-    grid_xy = grid_xy.unsqueeze(0).unsqueeze(3)               # 1 H W 1 2 (便于广播)
-
-    # anchors → Tensor[NA,2] → reshape 为 1×1×1×NA×2
-    anchors = torch.tensor(anchors, dtype=torch.float32, device=device)
-    anchor_wh = anchors.view(num_anchors, 2)                  # NA 2
-    anchor_wh = anchor_wh.view(1, 1, 1, num_anchors, 2)       # 1 H W NA 2
-
-    # -------------------------------------------------------------
-    # 4. 解码公式
-    #    bx = (sigmoid(tx) + cx) / W
-    #    by = (sigmoid(ty) + cy) / H
-    #    bw = exp(tw) * pw / input_w
-    #    bh = exp(th) * ph / input_h
-    # -------------------------------------------------------------
-    input_w = W * downsample
-    input_h = H * downsample
-
-    # ① 中心点坐标归一化
-    box_xy = (torch.sigmoid(pred_loc[..., 0:2]) + grid_xy)   # B H W NA 2
-    box_xy = box_xy / torch.tensor([W, H], device=device)
-
-    # ② 宽高归一化
-    box_wh = torch.exp(pred_loc[..., 2:4]) * anchor_wh        # B H W NA 2
-    box_wh = box_wh / torch.tensor([input_w, input_h], device=device)
-
-    # -------------------------------------------------------------
-    # 5. 转成 (x1,y1,x2,y2)
-    # -------------------------------------------------------------
-    x1y1 = box_xy - box_wh / 2.0
-    x2y2 = box_xy + box_wh / 2.0
-    boxes = torch.cat([x1y1, x2y2], dim=-1)                   # B H W NA 4
-    boxes.clamp_(0.0, 1.0)                                    # 保证 0~1
-
-    return boxes
 
 class Upsample(torch.nn.Module):
     def __init__(self, scale=2):
