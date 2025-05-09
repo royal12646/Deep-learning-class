@@ -1,5 +1,26 @@
+from torch.utils.tensorboard import SummaryWriter
+import time, os
+from model import YOLOv3
+import torch
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+import time, os
+from torch.utils.data import  DataLoader
+from utils import get_insect_names,get_annotations
+from utils import TrainDataset,build_subset_loader,test_data_loader
+from utils import draw_boxes_save
+from utils import decode_yolo_multiscale
+from torchvision.ops import batched_nms,nms
+
+
 if __name__ == "__main__":
-  
+    INSECT_NAMES = ['Boerner', 'Leconte', 'Linnaeus',
+                    'acuminatus', 'armandi', 'coleoptera', 'linnaeus']
+
+    TESTDIR = '/mnt/disk1/LY/深度学习/inserts/insects/test/images'
+
+    cname2cid = get_insect_names()
+    records = get_annotations(cname2cid, TRAINDIR)
     model = YOLOv3(num_classes=7)  #
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -16,10 +37,8 @@ if __name__ == "__main__":
         img_name, img_data, img_scale_data = data
         img = torch.tensor(img_data).to(device)
         img_scale = torch.tensor(img_scale_data).to(device)
-        print(img.shape)
         outputs = model.forward(img)
-        print(len(outputs))
-        print(outputs[2].shape)
+
         boxes, scores = decode_yolo_multiscale(
             outputs,
             anchor_masks=[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
@@ -38,7 +57,6 @@ if __name__ == "__main__":
         labels_filtered = cls_idx[mask]  # [M]
         scores_filtered = obj_cls_scores[mask]  # [M]  ← 单值置信度
         print(boxes_filtered.shape,scores_filtered.shape)
-        from torchvision.ops import batched_nms,nms
     
         iou_thr = 0.6
         keep_idx = batched_nms(
